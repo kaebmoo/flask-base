@@ -1,8 +1,13 @@
 from flask import url_for
 from wtforms.fields import Field
 from wtforms.widgets import HiddenInput
-from wtforms.compat import text_type
+import sys
 
+# from wtforms.compat import text_type
+if sys.version_info[0] >= 3:
+    text_type = str
+    string_types = (str,)
+    izip = zip
 
 def register_template_utils(app):
     """Register Jinja 2 helpers (called from __init__.py)."""

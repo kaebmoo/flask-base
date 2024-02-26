@@ -3,29 +3,25 @@ import os
 import subprocess
 
 from flask_migrate import Migrate, MigrateCommand
-from flask_script import Manager, Shell, Server
+import click
+from flask import Flask, cli
 from redis import Redis
 from rq import Connection, Queue, Worker
-
 from app import create_app, db
 from app.models import Role, User
 from config import Config
 
 app = create_app(os.getenv('FLASK_CONFIG') or 'default')
-manager = Manager(app)
+# manager = Manager(app)
 migrate = Migrate(app, db)
 
 
+@app.shell_context_processor
 def make_shell_context():
-    return dict(app=app, db=db, User=User, Role=Role)
+    return {'db': db, 'User': User, 'Role': Role}
 
 
-manager.add_command('shell', Shell(make_context=make_shell_context))
-manager.add_command('db', MigrateCommand)
-manager.add_command('runserver', Server(host="0.0.0.0"))
-
-
-@manager.command
+@app.cli.command("test")
 def test():
     """Run the unit tests."""
     import unittest
@@ -34,7 +30,7 @@ def test():
     unittest.TextTestRunner(verbosity=2).run(tests)
 
 
-@manager.command
+@app.cli.command("recreate_db")
 def recreate_db():
     """
     Recreates a local database. You probably should not use this on
@@ -44,28 +40,23 @@ def recreate_db():
     db.create_all()
     db.session.commit()
 
-
-@manager.option(
-    '-n',
-    '--number-users',
-    default=10,
-    type=int,
-    help='Number of each model type to create',
-    dest='number_users')
+@app.cli.command("add-fake-data")
+@click.option('--number-users', default=10, help='Number of each model type to create')
 def add_fake_data(number_users):
     """
     Adds fake data to the database.
     """
     User.generate_fake(count=number_users)
+    click.echo(f"Added {number_users} fake users.")
 
 
-@manager.command
+@app.cli.command()
 def setup_dev():
     """Runs the set-up needed for local development."""
     setup_general()
 
 
-@manager.command
+@app.cli.command()
 def setup_prod():
     """Runs the set-up needed for production."""
     setup_general()
@@ -89,7 +80,7 @@ def setup_general():
             print('Added administrator {}'.format(user.full_name()))
 
 
-@manager.command
+@app.cli.command()
 def run_worker():
     """Initializes a slim rq task queue."""
     listen = ['default']
@@ -102,9 +93,11 @@ def run_worker():
     with Connection(conn):
         worker = Worker(map(Queue, listen))
         worker.work()
+        # สร้างคิวโดยใช้ connection ของ Redis
+        queue = Queue(connection=conn)
 
 
-@manager.command
+@app.cli.command()
 def format():
     """Runs the yapf and isort formatters over the project."""
     isort = 'isort -rc *.py app/'
@@ -118,4 +111,5 @@ def format():
 
 
 if __name__ == '__main__':
-    manager.run()
+    # manager.run()
+    app.run(debug=True)

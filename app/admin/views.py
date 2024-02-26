@@ -8,7 +8,8 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
-from flask_rq import get_queue
+
+from rq import Queue
 
 from app import db
 from app.admin.forms import (
@@ -22,6 +23,12 @@ from app.email import send_email
 from app.models import EditableHTML, Role, User
 
 admin = Blueprint('admin', __name__)
+
+from redis import Redis
+# Create a Redis connection (adjust the parameters accordingly)
+redis_connection = Redis(host='localhost', port=6379, db=0)
+# Create a queue using the Redis connection
+queue = Queue(connection=redis_connection)
 
 
 @admin.route('/')
@@ -72,7 +79,7 @@ def invite_user():
             user_id=user.id,
             token=token,
             _external=True)
-        get_queue().enqueue(
+        queue.enqueue(
             send_email,
             recipient=user.email,
             subject='You Are Invited To Join',

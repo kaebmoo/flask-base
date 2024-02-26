@@ -5,7 +5,8 @@ from flask_assets import Environment
 from flask_compress import Compress
 from flask_login import LoginManager
 from flask_mail import Mail
-from flask_rq import RQ
+# from flask_rq import RQ
+from rq import Queue
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 
@@ -44,7 +45,9 @@ def create_app(config):
     login_manager.init_app(app)
     csrf.init_app(app)
     compress.init_app(app)
-    RQ(app)
+    # RQ(app)
+    
+
 
     # Register Jinja template functions
     from .utils import register_template_utils
